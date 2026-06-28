@@ -54,6 +54,7 @@ async function loadConfig(argv) {
     debug: cli.debug ?? parseBoolean(process.env.DEBUG, false),
     dryRun: cli.dryRun ?? parseBoolean(process.env.DRY_RUN, false),
     skipPersonalAccounts: parseBoolean(process.env.SKIP_PERSONAL_ACCOUNTS, true),
+    preferRecentFollows: parseBoolean(process.env.PREFER_RECENT_FOLLOWS, true),
     startUrl: process.env.START_URL || 'https://www.instagram.com',
     followingUrl: cli.followingUrl || process.env.FOLLOWING_URL || '',
     scrollPauseMinSeconds: parseInteger(process.env.SCROLL_PAUSE_MIN_SECONDS, 2),

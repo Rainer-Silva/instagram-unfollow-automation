@@ -92,6 +92,38 @@ async function assertLoggedIn(page) {
   }
 }
 
+async function preferRecentFollowingSort(page, config, logger) {
+  if (!config.preferRecentFollows) return false;
+
+  const dialog = page.getByRole('dialog').first();
+  if (!(await dialog.count().catch(() => 0))) return false;
+
+  const sortTriggers = [
+    dialog.getByRole('button', { name: /sort|default|date followed|earliest|latest/i }).first(),
+    dialog.getByText(/sort by|date followed|default/i).first()
+  ];
+
+  for (const trigger of sortTriggers) {
+    if (!(await trigger.count().catch(() => 0))) continue;
+    try {
+      await trigger.click({ timeout: 3000 });
+      await page.waitForTimeout(1000);
+      const latestOption = page.getByRole('button', { name: /latest|newest|date followed:\s*latest/i }).first();
+      if (await latestOption.count().catch(() => 0)) {
+        await latestOption.click({ timeout: 3000 });
+        await page.waitForTimeout(1500);
+        logger.info('following_sort_recent_first', {});
+        return true;
+      }
+    } catch (error) {
+      logger.debug('following_sort_recent_first_retry', { message: error.message });
+    }
+  }
+
+  logger.debug('following_sort_recent_first_unavailable', {});
+  return false;
+}
+
 async function openFollowingList(page, config, logger) {
   if (!config.instagramUsername && !config.followingUrl) {
     throw new Error('Set INSTAGRAM_USERNAME or FOLLOWING_URL in .env');
@@ -144,6 +176,7 @@ async function openFollowingList(page, config, logger) {
     if (/sign up and never miss a post|log in/i.test(dialogText)) {
       throw new Error('Connected Chrome profile is not logged into Instagram. Start Chrome with the logged-in profile.');
     }
+    await preferRecentFollowingSort(page, config, logger);
     logger.info('following_dialog_opened', {});
     return;
   }
@@ -235,4 +268,5 @@ module.exports = {
   clickUnfollowFromCard,
   dismissCookieDialog,
   assertLoggedIn,
+  preferRecentFollowingSort,
 };

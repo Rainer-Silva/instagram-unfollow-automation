@@ -8,6 +8,7 @@
     "start": "node src/index.js",
     "live": "node src/index.js --live",
     "login": "node src/login.js",
+    "import-allowlist": "node src/import-allowlist.js",
     "chrome:start": "node src/chrome-start.js",
     "dry-run": "node src/index.js --dry-run",
     "report": "node src/report.js",

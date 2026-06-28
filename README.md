@@ -18,6 +18,7 @@ This project is a local-only macOS automation tool built with Node.js and Playwr
 - Supports dry-run mode
 - Prioritizes page/product/selling-like accounts before personal accounts
 - Pushes accounts with mutual-friend/follows-you text to the end of the queue
+- Can import a local Instagram data export to auto-allowlist accounts from message/interaction files
 
 ## Safety first
 
@@ -57,7 +58,15 @@ This project is a local-only macOS automation tool built with Node.js and Playwr
    npm run dry-run
    ```
 
-6. Run the real automation explicitly:
+6. Optional: import a local Instagram data export to protect people you have messaged or interacted with:
+
+   ```bash
+   npm run import-allowlist -- /path/to/instagram-export
+   ```
+
+   This reads local JSON export files only. It does not log into Instagram, scrape DMs, or store passwords.
+
+7. Run the real automation explicitly:
 
    ```bash
    npm run live
@@ -92,6 +101,10 @@ Candidates are grouped before action:
 - `mutual_friends_last`: accounts with mutual-friend/follows-you style row text.
 
 Verified accounts and allowlisted accounts are still skipped.
+
+By default, `SKIP_PERSONAL_ACCOUNTS=1` means `person_or_uncategorized` accounts are skipped. This is safer because Instagram often does not expose enough mutual-friend context in the following-list row.
+
+By default, `PREFER_RECENT_FOLLOWS=1` attempts to use Instagram's following-list sorting controls to start with latest/recent follows when that UI is available.
 
 ## Daily scheduling
 

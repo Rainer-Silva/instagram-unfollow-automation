@@ -134,6 +134,8 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
 
   let batchCount = 0;
   let loops = 0;
+  let lastVisibleTotal = 0;
+  let stagnantScrolls = 0;
   const sessionSeenUsernames = new Set();
 
   while (state.unfollowedToday < config.dailyMaxUnfollows && loops < 1000) {
@@ -144,9 +146,24 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
     const candidates = await scanVisibleCandidates(page, config, logger, state, allowlist, sessionSeenUsernames);
     if (!candidates.length) {
       logger.debug('no_candidates_visible', { loops });
+      const snapshot = await getFollowingCards(page);
+      if (snapshot.total > lastVisibleTotal) {
+        lastVisibleTotal = snapshot.total;
+        stagnantScrolls = 0;
+      } else {
+        stagnantScrolls += 1;
+      }
+      if (stagnantScrolls >= 12) {
+        logger.warn('stopping_no_new_rows', {
+          visibleTotal: snapshot.total,
+          stagnantScrolls
+        });
+        break;
+      }
       await humanScroll(page, config, logger);
       continue;
     }
+    stagnantScrolls = 0;
 
     for (const candidate of candidates) {
       if (state.unfollowedToday >= config.dailyMaxUnfollows) break;

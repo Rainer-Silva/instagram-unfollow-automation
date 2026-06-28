@@ -1,11 +1,19 @@
 const { loadConfig } = require('./lib/config');
-const { createLogger } = require('./lib/logger');
 const { loadState } = require('./lib/state');
 const { generateDailyReport } = require('./lib/report');
 
 async function main() {
   const config = await loadConfig([]);
-  const logger = createLogger(config);
+  const logger = {
+    info: (event, payload = {}) => {
+      if (event === 'report_written') {
+        console.log(`report_written ${payload.reportPath}`);
+      }
+    },
+    warn: () => {},
+    error: () => {},
+    debug: () => {}
+  };
   const state = await loadState(config, logger);
   const report = await generateDailyReport({
     config,
@@ -13,7 +21,6 @@ async function main() {
     state,
     result: { completed: true }
   });
-  await logger.close();
   console.log(report);
 }
 

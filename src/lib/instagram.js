@@ -22,8 +22,17 @@ function normalizeUsername(value) {
 
 async function humanScroll(page, config, logger) {
   const distance = randomInt(250, 850);
-  await page.mouse.wheel(0, distance);
-  logger.debug('scroll', { distance });
+  const scrolledDialog = await page.locator('[role="dialog"]').first().evaluate((dialog, amount) => {
+    const candidates = [dialog, ...dialog.querySelectorAll('div')];
+    const scrollable = candidates.find((el) => el.scrollHeight > el.clientHeight + 20);
+    if (!scrollable) return false;
+    scrollable.scrollBy({ top: amount, behavior: 'smooth' });
+    return true;
+  }, distance).catch(() => false);
+  if (!scrolledDialog) {
+    await page.mouse.wheel(0, distance);
+  }
+  logger.debug('scroll', { distance, target: scrolledDialog ? 'dialog' : 'page' });
   await sleep(delaySeconds(config.scrollPauseMinSeconds, config.scrollPauseMaxSeconds));
 }
 

@@ -1,0 +1,131 @@
+# Local Instagram Unfollow Automation
+
+This project is a local-only macOS automation tool built with Node.js and Playwright.
+
+## What it does
+
+- Opens Instagram in a visible Chrome window
+- Reuses your existing Chrome login session/profile
+- Opens the following list and scans accounts
+- Skips verified accounts
+- Skips usernames in `config/allowlist.txt`
+- Unfollows slowly with randomized waits
+- Stops at a configurable daily limit
+- Writes CSV logs
+- Saves screenshots on errors
+- Persists resume state safely
+- Generates a daily summary report
+- Supports dry-run mode
+- Prioritizes page/product/selling-like accounts before personal accounts
+- Pushes accounts with mutual-friend/follows-you text to the end of the queue
+
+## Safety first
+
+- Runs only on your Mac
+- Does not use cloud hosting
+- Does not store Instagram credentials in code
+- Uses a dedicated local Chrome session cache instead of asking for a password in code
+- Stops immediately if Instagram shows a challenge, warning, or action-block message
+- Adds randomized waits between 20 and 90 seconds
+- Adds a longer cooldown after every 10 unfollows
+- Uses human-like scrolling only
+
+## Setup
+
+1. Install dependencies:
+
+   ```bash
+   npm install
+   npx playwright install chrome
+   ```
+
+2. Copy `.env.example` to `.env` and adjust values.
+
+3. Copy `config/allowlist.example.txt` to `config/allowlist.txt`, then add usernames you never want to unfollow.
+
+4. Log in once using the dedicated local automation Chrome profile:
+
+   ```bash
+   npm run login
+   ```
+
+   Enter your password/2FA manually in the visible browser. The session is cached locally in `work/chrome-automation-profile`.
+
+5. Run a dry-run first:
+
+   ```bash
+   npm run dry-run
+   ```
+
+6. Run the real automation explicitly:
+
+   ```bash
+   npm run live
+   ```
+
+## Chrome profile setup
+
+The recommended working mode is a dedicated persistent Chrome profile:
+
+- `BROWSER_MODE=persistent`
+- `CHROME_USER_DATA_DIR=work/chrome-automation-profile`
+
+This keeps Instagram session cookies/cache local to your Mac and out of source control.
+
+Do not store your Instagram password in `.env`, scripts, launchd, or source files.
+
+Remote debugging mode is still available for advanced use. Set these in `.env` only if you want to attach to an already-running Chrome instance:
+
+- `CHROME_USER_DATA_DIR`
+- `CHROME_PROFILE_DIR`
+- `CHROME_REMOTE_DEBUGGING_PORT`
+- `CHROME_REMOTE_DEBUGGING_URL` if you want to attach to a running Chrome started with remote debugging
+
+## Prioritization
+
+Candidates are grouped before action:
+
+- `selling_or_product_page`: product, store, shop, sale, brand, course, coaching, etc.
+- `instagram_business_or_creator_category`: Instagram-visible labels such as product/service, shopping/retail, local business, digital creator, public figure, artist, musician/band, restaurant, etc.
+- `public_or_general_page`: media, news, travel, embassy, company, restaurant, community, etc.
+- `person_or_uncategorized`: normal personal-looking accounts.
+- `mutual_friends_last`: accounts with mutual-friend/follows-you style row text.
+
+Verified accounts and allowlisted accounts are still skipped.
+
+## Daily scheduling
+
+This repo includes a launchd example at `config/launchd/com.local.instagram-unfollow.plist`.
+
+Example install flow:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.local.instagram-unfollow.plist 2>/dev/null || true
+cp config/launchd/com.local.instagram-unfollow.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.local.instagram-unfollow.plist
+```
+
+The plist uses `npm run live`, so `.env` can remain `DRY_RUN=1` for manual safety while the scheduled job intentionally runs live with the configured daily cap.
+
+Adjust paths and timing inside the plist before loading it.
+
+## Reports and logs
+
+- CSV logs: `logs/unfollow-actions-YYYY-MM-DD.csv`
+- Error screenshots: `screenshots/`
+- Resume state: `config/state.json`
+- Summary reports: `reports/daily-summary-YYYY-MM-DD.md`
+
+You can generate a summary report from today’s logs with:
+
+```bash
+npm run report
+```
+
+## Debugging
+
+Set `DEBUG=1` in `.env` for verbose logging.
+
+## Important warning
+
+Instagram automation can still trigger account protections even when used conservatively. Keep limits low, prefer dry-run testing, and stop immediately if the app detects a warning or challenge page.

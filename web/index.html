@@ -38,6 +38,33 @@
 
       <section class="grid two">
         <article class="card">
+          <h2>Cleanup Target</h2>
+          <p class="muted">Choose which profile’s following list to clean. Changing target resets the local daily/resume state for safety.</p>
+          <label>
+            Instagram username
+            <input id="target-account" type="text" placeholder="rainermax_suecia" autocomplete="off">
+          </label>
+          <label>
+            Following URL override
+            <input id="following-url" type="url" placeholder="Optional: https://www.instagram.com/username/following/">
+          </label>
+          <div class="mode-switch">
+            <label class="check">
+              <input id="mode-categories" name="cleanup-mode" type="radio" value="categories">
+              Clean selected categories
+            </label>
+            <label class="check">
+              <input id="mode-all" name="cleanup-mode" type="radio" value="all">
+              Clean all follows, except verified and allowlist
+            </label>
+          </div>
+          <div class="category-grid" id="category-grid"></div>
+          <div class="actions">
+            <button id="save-config">Save Cleanup Settings</button>
+          </div>
+        </article>
+
+        <article class="card">
           <h2>Run Control</h2>
           <p class="muted">Live mode opens visible Chrome and uses your cached local session. Stop immediately if Instagram warns.</p>
           <label>
@@ -51,7 +78,9 @@
           </div>
           <pre id="run-output" class="terminal"></pre>
         </article>
+      </section>
 
+      <section class="grid two">
         <article class="card">
           <h2>Scheduler</h2>
           <p class="muted">These settings update `.env` and the local launchd plist. Install/reload after changing time.</p>

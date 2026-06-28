@@ -20,8 +20,18 @@ function parseArgs(argv) {
     else if (arg === '--debug') options.debug = true;
     else if (arg.startsWith('--max-unfollows=')) options.dailyMaxUnfollows = parseInteger(arg.split('=')[1], undefined);
     else if (arg.startsWith('--following-url=')) options.followingUrl = arg.split('=').slice(1).join('=');
+    else if (arg.startsWith('--cleanup-mode=')) options.cleanupMode = arg.split('=')[1];
+    else if (arg.startsWith('--categories=')) options.cleanupCategories = arg.split('=')[1];
   }
   return options;
+}
+
+function parseList(value, defaultValue = []) {
+  if (!value) return defaultValue;
+  return String(value)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 async function ensureDir(dirPath) {
@@ -29,7 +39,7 @@ async function ensureDir(dirPath) {
 }
 
 async function loadConfig(argv) {
-  dotenv.config();
+  dotenv.config({ override: true });
   const cli = parseArgs(argv);
 
   const rootDir = process.cwd();
@@ -55,6 +65,15 @@ async function loadConfig(argv) {
     dryRun: cli.dryRun ?? parseBoolean(process.env.DRY_RUN, false),
     skipPersonalAccounts: parseBoolean(process.env.SKIP_PERSONAL_ACCOUNTS, true),
     preferRecentFollows: parseBoolean(process.env.PREFER_RECENT_FOLLOWS, true),
+    cleanupMode: cli.cleanupMode || process.env.CLEANUP_MODE || 'categories',
+    cleanupCategories: parseList(
+      cli.cleanupCategories || process.env.CLEANUP_CATEGORIES,
+      [
+        'instagram_business_or_creator_category',
+        'selling_or_product_page',
+        'public_or_general_page'
+      ]
+    ),
     startUrl: process.env.START_URL || 'https://www.instagram.com',
     followingUrl: cli.followingUrl || process.env.FOLLOWING_URL || '',
     scrollPauseMinSeconds: parseInteger(process.env.SCROLL_PAUSE_MIN_SECONDS, 2),

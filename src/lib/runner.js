@@ -111,6 +111,11 @@ async function scanVisibleCandidates(page, config, logger, state, allowlist, ses
   return sortCandidatesByCategory(candidates);
 }
 
+function isCategoryEligible(config, category) {
+  if (config.cleanupMode === 'all') return true;
+  return new Set(config.cleanupCategories || []).has(category);
+}
+
 async function runUnfollowRoutine({ config, logger, state, browser }) {
   const page = browser.page;
   const allowlist = loadAllowlist(config);
@@ -180,7 +185,11 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
         continue;
       }
 
-      if (config.skipPersonalAccounts && candidate.category === 'person_or_uncategorized') {
+      if (
+        config.skipPersonalAccounts
+        && candidate.category === 'person_or_uncategorized'
+        && !isCategoryEligible(config, candidate.category)
+      ) {
         state.processedUsernames[candidate.username] = {
           status: 'skipped_personal_uncategorized',
           at: new Date().toISOString()
@@ -190,6 +199,24 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
           username: candidate.username,
           reason: candidate.category,
           details: 'SKIP_PERSONAL_ACCOUNTS=1'
+        });
+        if (!config.dryRun) {
+          await saveState(config, state);
+        }
+        continue;
+      }
+
+      if (!isCategoryEligible(config, candidate.category)) {
+        state.processedUsernames[candidate.username] = {
+          status: 'skipped_category_not_selected',
+          category: candidate.category,
+          at: new Date().toISOString()
+        };
+        result.skipped += 1;
+        logger.warn('skip_category_not_selected', {
+          username: candidate.username,
+          reason: candidate.category,
+          details: `CLEANUP_MODE=${config.cleanupMode}`
         });
         if (!config.dryRun) {
           await saveState(config, state);

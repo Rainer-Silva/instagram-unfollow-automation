@@ -80,6 +80,10 @@ This project is a local-only macOS automation tool built with Node.js and Playwr
 
    Open `http://127.0.0.1:3000`.
 
+   The dashboard can change the Instagram username/profile being cleaned, choose all follows or selected categories, edit the allowlist, launch dry-run/live runs, and adjust scheduler time/count.
+
+   Changing the cleanup target resets local daily/resume state for safety, so processed usernames from one account are not reused for another account.
+
 ## Chrome profile setup
 
 The recommended working mode is a dedicated persistent Chrome profile:

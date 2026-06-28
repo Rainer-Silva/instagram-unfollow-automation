@@ -17,6 +17,13 @@ const HOST = '127.0.0.1';
 const rootDir = process.cwd();
 const webDir = path.join(rootDir, 'web');
 const envPath = path.join(rootDir, '.env');
+const cleanupCategories = [
+  'instagram_business_or_creator_category',
+  'selling_or_product_page',
+  'public_or_general_page',
+  'person_or_uncategorized',
+  'mutual_friends_last'
+];
 
 let activeRun = null;
 let lastRun = {
@@ -80,8 +87,14 @@ async function statusPayload() {
 
   return {
     account: config.instagramUsername,
+    followingUrl: config.followingUrl,
     dryRun: config.dryRun,
     dailyMaxUnfollows: config.dailyMaxUnfollows,
+    cleanup: {
+      mode: config.cleanupMode,
+      categories: config.cleanupCategories,
+      availableCategories: cleanupCategories
+    },
     today: {
       date: state.date,
       unfollowed: state.unfollowedToday,
@@ -116,7 +129,11 @@ async function statusPayload() {
     env: {
       DAILY_MAX_UNFOLLOWS: env.values.DAILY_MAX_UNFOLLOWS || '',
       DRY_RUN: env.values.DRY_RUN || '',
-      DEBUG: env.values.DEBUG || ''
+      DEBUG: env.values.DEBUG || '',
+      INSTAGRAM_USERNAME: env.values.INSTAGRAM_USERNAME || '',
+      FOLLOWING_URL: env.values.FOLLOWING_URL || '',
+      CLEANUP_MODE: env.values.CLEANUP_MODE || '',
+      CLEANUP_CATEGORIES: env.values.CLEANUP_CATEGORIES || ''
     }
   };
 }
@@ -188,6 +205,52 @@ async function handleApi(req, res, pathname) {
     const body = await readJson(req);
     const config = await loadConfig([]);
     await fs.promises.writeFile(config.allowlistPath, String(body.allowlist || ''), 'utf8');
+    return json(res, 200, { ok: true });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/config') {
+    const body = await readJson(req);
+    const account = String(body.account || '').trim().replace(/^@/, '').toLowerCase();
+    const followingUrl = String(body.followingUrl || '').trim();
+    const cleanupMode = body.cleanupMode === 'all' ? 'all' : 'categories';
+    const selectedCategories = Array.isArray(body.cleanupCategories)
+      ? body.cleanupCategories.filter((category) => cleanupCategories.includes(category))
+      : [];
+
+    if (!account && !followingUrl) {
+      throw new Error('Set an Instagram username or a following URL.');
+    }
+    if (account && !/^[a-z0-9._]{1,30}$/.test(account)) {
+      throw new Error('Instagram username can only contain letters, numbers, dots, and underscores.');
+    }
+    if (cleanupMode === 'categories' && selectedCategories.length === 0) {
+      throw new Error('Select at least one cleanup category or choose all follows.');
+    }
+
+    const current = await readEnvFile(envPath);
+    const previousTarget = current.values.INSTAGRAM_USERNAME || current.values.FOLLOWING_URL || '';
+    const nextTarget = account || followingUrl;
+    await updateEnvFile(envPath, {
+      INSTAGRAM_USERNAME: account,
+      FOLLOWING_URL: followingUrl,
+      CLEANUP_MODE: cleanupMode,
+      CLEANUP_CATEGORIES: selectedCategories.join(','),
+      SKIP_PERSONAL_ACCOUNTS: cleanupMode === 'all' || selectedCategories.includes('person_or_uncategorized') ? '0' : '1'
+    });
+
+    if (previousTarget && previousTarget !== nextTarget) {
+      const statePath = path.join(rootDir, 'config', 'state.json');
+      const nextState = {
+        date: new Date().toISOString().slice(0, 10),
+        targetAccount: nextTarget,
+        unfollowedToday: 0,
+        processedUsernames: {},
+        lastSeenUsername: null,
+        lastRunAt: new Date().toISOString()
+      };
+      await fs.promises.writeFile(statePath, JSON.stringify(nextState, null, 2) + '\n', 'utf8');
+    }
+
     return json(res, 200, { ok: true });
   }
 

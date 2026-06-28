@@ -72,6 +72,14 @@ This project is a local-only macOS automation tool built with Node.js and Playwr
    npm run live
    ```
 
+8. Start the local web dashboard:
+
+   ```bash
+   npm run web
+   ```
+
+   Open `http://127.0.0.1:3000`.
+
 ## Chrome profile setup
 
 The recommended working mode is a dedicated persistent Chrome profile:
@@ -109,6 +117,13 @@ By default, `PREFER_RECENT_FOLLOWS=1` attempts to use Instagram's following-list
 ## Daily scheduling
 
 This repo includes a launchd example at `config/launchd/com.local.instagram-unfollow.plist`.
+
+The local dashboard can update the scheduled hour, minute, and daily cap. It writes:
+
+- `.env` for `DAILY_MAX_UNFOLLOWS` and scheduled dry-run/live mode
+- `config/launchd/com.local.instagram-unfollow.plist` for the launchd run time
+
+After changing schedule settings in the dashboard, click `Install / Reload` to copy the plist into `~/Library/LaunchAgents`.
 
 Example install flow:
 

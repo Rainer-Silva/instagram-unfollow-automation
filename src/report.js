@@ -3,7 +3,7 @@ const { loadState } = require('./lib/state');
 const { generateDailyReport } = require('./lib/report');
 
 async function main() {
-  const config = await loadConfig([]);
+  const config = await loadConfig(process.argv.slice(2));
   const logger = {
     info: (event, payload = {}) => {
       if (event === 'report_written') {

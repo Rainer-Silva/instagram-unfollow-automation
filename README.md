@@ -80,9 +80,21 @@ This project is a local-only macOS automation tool built with Node.js and Playwr
 
    Open `http://127.0.0.1:3000`.
 
-   The dashboard can change the Instagram username/profile being cleaned, choose all follows or selected categories, edit the allowlist, launch dry-run/live runs, and adjust scheduler time/count.
+   The dashboard can change the Instagram username/profile being cleaned, open a manual login window, choose all follows or selected categories, edit the allowlist, launch dry-run/live runs, and adjust scheduler time/count.
 
    Changing the cleanup target resets local daily/resume state for safety, so processed usernames from one account are not reused for another account.
+
+## Web login assistant
+
+From the dashboard, use `Open Login Window` in the Cleanup Target card when the automation Chrome profile is not logged into the account you want to clean.
+
+- The app opens visible Chrome at Instagram login.
+- You type the Instagram password and any 2FA manually.
+- The dashboard waits for the login to complete.
+- If the username can be detected, `.env` is updated to that logged-in account and `FOLLOWING_URL` is cleared.
+- The password is never stored, logged, typed by the script, or added to `.env`.
+
+Use `Stop Login Wait` if you change your mind or Instagram asks for something you do not want to complete.
 
 ## Chrome profile setup
 

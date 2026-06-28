@@ -4,7 +4,10 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { loadConfig } = require('./lib/config');
 const { loadState } = require('./lib/state');
+const { createLogger } = require('./lib/logger');
+const { createBrowser } = require('./lib/browser');
 const { readEnvFile, updateEnvFile } = require('./lib/env-file');
+const { waitForManualLogin, saveDetectedLoginTarget } = require('./lib/login-session');
 const {
   readSchedule,
   writeSchedule,
@@ -26,6 +29,7 @@ const cleanupCategories = [
 ];
 
 let activeRun = null;
+let activeLogin = null;
 let lastRun = {
   running: false,
   mode: '',
@@ -33,6 +37,15 @@ let lastRun = {
   startedAt: null,
   finishedAt: null,
   exitCode: null,
+  output: []
+};
+let lastLogin = {
+  running: false,
+  startedAt: null,
+  finishedAt: null,
+  loggedIn: false,
+  username: '',
+  error: '',
   output: []
 };
 
@@ -119,6 +132,15 @@ async function statusPayload() {
       exitCode: lastRun.exitCode,
       output: lastRun.output.slice(-80)
     },
+    login: {
+      running: Boolean(activeLogin),
+      startedAt: lastLogin.startedAt,
+      finishedAt: lastLogin.finishedAt,
+      loggedIn: lastLogin.loggedIn,
+      username: lastLogin.username,
+      error: lastLogin.error,
+      output: lastLogin.output.slice(-40)
+    },
     files: {
       latestReport: report?.file || '',
       latestLog: log?.file || ''
@@ -136,6 +158,90 @@ async function statusPayload() {
       CLEANUP_CATEGORIES: env.values.CLEANUP_CATEGORIES || ''
     }
   };
+}
+
+function appendLoginOutput(line) {
+  lastLogin.output.push(`[${new Date().toISOString()}] ${line}`);
+  if (lastLogin.output.length > 120) lastLogin.output.shift();
+}
+
+async function startLoginFlow() {
+  if (activeRun) {
+    throw new Error('Stop the active run before opening the login window.');
+  }
+  if (activeLogin) {
+    throw new Error('A login window is already active.');
+  }
+
+  lastLogin = {
+    running: true,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    loggedIn: false,
+    username: '',
+    error: '',
+    output: []
+  };
+  appendLoginOutput('Opening visible Chrome login window. Enter credentials manually.');
+
+  let browser = null;
+  let logger = null;
+  let config = null;
+  try {
+    config = await loadConfig([]);
+    logger = createLogger(config);
+    browser = await createBrowser(config, logger);
+    activeLogin = { browser, logger };
+  } catch (error) {
+    lastLogin.running = false;
+    lastLogin.finishedAt = new Date().toISOString();
+    lastLogin.error = error.message;
+    appendLoginOutput(error.message);
+    if (browser) await browser.close().catch(() => {});
+    if (logger) await logger.close().catch(() => {});
+    throw error;
+  }
+
+  waitForManualLogin({ browser, config, logger })
+    .then(async (result) => {
+      lastLogin.loggedIn = result.loggedIn;
+      lastLogin.username = result.username || '';
+      if (result.loggedIn && result.username) {
+        await saveDetectedLoginTarget({ envPath, username: result.username });
+        appendLoginOutput(`Login detected as ${result.username}. Cleanup target updated.`);
+      } else if (result.loggedIn) {
+        appendLoginOutput('Login detected, but username could not be detected automatically.');
+      } else {
+        lastLogin.error = 'Timed out waiting for manual login.';
+        appendLoginOutput(lastLogin.error);
+      }
+    })
+    .catch((error) => {
+      if (lastLogin.error !== 'Stopped by user.') {
+        lastLogin.error = error.message;
+        appendLoginOutput(error.message);
+      }
+    })
+    .finally(async () => {
+      lastLogin.running = false;
+      lastLogin.finishedAt = new Date().toISOString();
+      activeLogin = null;
+      await browser.close().catch(() => {});
+      await logger.close().catch(() => {});
+    });
+}
+
+async function stopLoginFlow() {
+  if (!activeLogin) return false;
+  appendLoginOutput('Manual login wait stopped by user.');
+  lastLogin.running = false;
+  lastLogin.finishedAt = new Date().toISOString();
+  lastLogin.error = 'Stopped by user.';
+  const { browser, logger } = activeLogin;
+  activeLogin = null;
+  await browser.close().catch(() => {});
+  await logger.close().catch(() => {});
+  return true;
 }
 
 function startRun({ mode, maxUnfollows }) {
@@ -199,6 +305,16 @@ async function handleApi(req, res, pathname) {
       return json(res, 202, { ok: true });
     }
     return json(res, 200, { ok: true, message: 'No active run.' });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/login/start') {
+    await startLoginFlow();
+    return json(res, 202, { ok: true, login: lastLogin });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/login/stop') {
+    const stopped = await stopLoginFlow();
+    return json(res, 200, { ok: true, stopped });
   }
 
   if (req.method === 'POST' && pathname === '/api/allowlist') {

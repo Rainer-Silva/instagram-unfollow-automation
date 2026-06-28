@@ -49,6 +49,16 @@
             <input id="following-url" type="url" placeholder="Optional: https://www.instagram.com/username/following/">
           </label>
           <p class="warning-note">To clean a different Instagram account, first log into that account with the local Chrome automation profile, then update this username.</p>
+          <div class="login-box">
+            <h3>Manual Login Assistant</h3>
+            <p class="muted">Opens visible Chrome and waits while you log in yourself. No password is stored or typed by this app.</p>
+            <div class="actions">
+              <button id="start-login" class="secondary">Open Login Window</button>
+              <button id="stop-login" class="secondary">Stop Login Wait</button>
+            </div>
+            <p class="muted" id="login-status">Login assistant idle.</p>
+            <pre id="login-output" class="terminal compact"></pre>
+          </div>
           <div class="mode-switch">
             <label class="check">
               <input id="mode-categories" name="cleanup-mode" type="radio" value="categories">

@@ -32,13 +32,14 @@ function formatTime(hour, minute) {
 
 function render(status) {
   lastStatus = status;
+  const busy = status.activeRun.running || status.login.running;
   setText('account', status.account || '-');
   setText('removed-today', status.today.unfollowed);
   setText('daily-cap', status.dailyMaxUnfollows);
   setText('remaining', status.today.remaining);
-  setText('run-state', status.activeRun.running ? 'Running' : 'Idle');
-  $('run-state').style.background = status.activeRun.running ? '#16664f' : 'rgba(255,255,255,.55)';
-  $('run-state').style.color = status.activeRun.running ? '#fff' : '#1d1a16';
+  setText('run-state', status.activeRun.running ? 'Running' : status.login.running ? 'Login Wait' : 'Idle');
+  $('run-state').style.background = busy ? '#16664f' : 'rgba(255,255,255,.55)';
+  $('run-state').style.color = busy ? '#fff' : '#1d1a16';
 
   $('run-max').value = status.dailyMaxUnfollows;
   $('target-account').value = status.env.INSTAGRAM_USERNAME || status.account || '';
@@ -60,9 +61,21 @@ function render(status) {
   $('report').textContent = status.reportPreview || 'No report yet.';
   $('log').textContent = status.logPreview || 'No log yet.';
   $('run-output').textContent = (status.activeRun.output || []).join('\n');
+  $('login-status').textContent = loginStatusText(status.login);
+  $('login-output').textContent = (status.login.output || []).join('\n') || 'No login activity yet.';
   $('live-run').disabled = status.activeRun.running;
   $('dry-run').disabled = status.activeRun.running;
   $('stop-run').disabled = !status.activeRun.running;
+  $('start-login').disabled = status.activeRun.running || status.login.running;
+  $('stop-login').disabled = !status.login.running;
+}
+
+function loginStatusText(login) {
+  if (login.running) return 'Waiting for manual Instagram login in visible Chrome.';
+  if (login.error) return `Login assistant: ${login.error}`;
+  if (login.loggedIn && login.username) return `Login detected as ${login.username}.`;
+  if (login.loggedIn) return 'Login detected.';
+  return 'Login assistant idle.';
 }
 
 function renderCategories(availableCategories, selectedCategories) {
@@ -160,6 +173,12 @@ async function saveAllowlist() {
   await refresh();
 }
 
+async function startLogin() {
+  await saveConfig();
+  await request('/api/login/start', { method: 'POST' });
+  await refresh();
+}
+
 function bind(id, handler) {
   $(id).addEventListener('click', async () => {
     try {
@@ -173,6 +192,8 @@ function bind(id, handler) {
 bind('dry-run', () => run('dry-run'));
 bind('live-run', () => run('live'));
 bind('stop-run', () => request('/api/stop', { method: 'POST' }).then(refresh));
+bind('start-login', startLogin);
+bind('stop-login', () => request('/api/login/stop', { method: 'POST' }).then(refresh));
 bind('save-scheduler', saveScheduler);
 bind('save-config', saveConfig);
 bind('install-scheduler', installScheduler);

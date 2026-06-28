@@ -39,15 +39,16 @@
       <section class="grid two">
         <article class="card">
           <h2>Cleanup Target</h2>
-          <p class="muted">Choose which profile’s following list to clean. Changing target resets the local daily/resume state for safety.</p>
+          <p class="muted">This must match the Instagram account currently logged into the automation Chrome profile. Changing target does not switch Instagram accounts.</p>
           <label>
-            Instagram username
+            Logged-in Instagram username
             <input id="target-account" type="text" placeholder="rainermax_suecia" autocomplete="off">
           </label>
           <label>
-            Following URL override
+            Following URL override for that same logged-in account
             <input id="following-url" type="url" placeholder="Optional: https://www.instagram.com/username/following/">
           </label>
+          <p class="warning-note">To clean a different Instagram account, first log into that account with the local Chrome automation profile, then update this username.</p>
           <div class="mode-switch">
             <label class="check">
               <input id="mode-categories" name="cleanup-mode" type="radio" value="categories">

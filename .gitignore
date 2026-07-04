@@ -1,6 +1,7 @@
 .env
 config/state.json
 config/allowlist.txt
+config/notion.json
 logs/*
 !logs/.gitkeep
 screenshots/*

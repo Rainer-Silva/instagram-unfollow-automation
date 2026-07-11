@@ -56,14 +56,32 @@ function detectWarningText(text) {
   const patterns = [
     'action blocked',
     'try again later',
-    'challenge',
     'suspicious login',
     'we restrict certain activity',
     'feedback required',
     'your account has been temporarily blocked',
-    'temporarily blocked'
+    'temporarily blocked',
+    'confirm it\'s you',
+    'confirm your account',
+    'help us confirm',
+    'verify your account',
+    'enter the code',
+    'security code',
+    'checkpoint required'
   ];
-  return patterns.find((pattern) => haystack.includes(pattern));
+  const warning = patterns.find((pattern) => haystack.includes(pattern));
+  if (warning) return warning;
+
+  // "Challenge" appears in ordinary post/ad text, so only treat it as a
+  // safety stop when it is paired with account/security language.
+  const challengeWarningPatterns = [
+    /\bchallenge required\b/,
+    /\bsecurity challenge\b/,
+    /\bcomplete (?:a|the) challenge\b/,
+    /\bchallenge\b.{0,80}\b(account|security|verify|verification|login|code)\b/,
+    /\b(account|security|verify|verification|login|code)\b.{0,80}\bchallenge\b/
+  ];
+  return challengeWarningPatterns.some((pattern) => pattern.test(haystack)) ? 'challenge' : '';
 }
 
 async function checkSafetyStop(page) {
@@ -139,7 +157,13 @@ async function openFollowingList(page, config, logger) {
   }
   const profileTarget = config.followingUrl || `https://www.instagram.com/${config.instagramUsername}/`;
   logger.info('navigate_profile', { target: profileTarget });
-  await page.goto(profileTarget, { waitUntil: 'domcontentloaded' });
+  await page.goto(profileTarget, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(async (error) => {
+    const bodyText = await page.locator('body').innerText({ timeout: 5000 }).catch(() => '');
+    const profileLooksLoaded = new RegExp(`\\b${config.instagramUsername}\\b`, 'i').test(bodyText)
+      || /edit profile|view archive|\bfollowing\b/i.test(bodyText);
+    if (!profileLooksLoaded) throw error;
+    logger.warn('profile_navigation_timeout_continuing', { message: error.message });
+  });
   await page.waitForTimeout(2500);
   await dismissCookieDialog(page, logger);
   await assertLoggedIn(page);
@@ -272,6 +296,7 @@ module.exports = {
   normalizeUsername,
   humanScroll,
   loadAllowlist,
+  detectWarningText,
   checkSafetyStop,
   openFollowingList,
   clickUnfollowFromCard,

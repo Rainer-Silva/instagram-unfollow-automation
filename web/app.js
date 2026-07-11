@@ -52,6 +52,7 @@ function render(status) {
   $('schedule-max').value = status.dailyMaxUnfollows;
   $('schedule-live').checked = status.env.DRY_RUN !== '1';
   $('scheduler-path').textContent = `Launchd: ${formatTime(status.scheduler.hour, status.scheduler.minute)} / ${status.scheduler.installed ? 'installed' : 'not installed'}`;
+  $('wake-status').textContent = wakeStatusText(status.scheduler.wake);
 
   setText('delay-range', `Delay: ${status.safety.minDelaySeconds}-${status.safety.maxDelaySeconds}s`);
   setText('cooldown', `Cooldown: every ${status.safety.batchSize} actions, ${status.safety.cooldownMinutesMin}-${status.safety.cooldownMinutesMax} min`);
@@ -157,6 +158,16 @@ async function installScheduler() {
   await refresh();
 }
 
+async function installWake() {
+  await request('/api/scheduler/wake/install', { method: 'POST' });
+  await refresh();
+}
+
+async function clearWake() {
+  await request('/api/scheduler/wake/clear', { method: 'POST' });
+  await refresh();
+}
+
 async function setScheduler(enabled) {
   await request('/api/scheduler/enabled', {
     method: 'POST',
@@ -189,6 +200,12 @@ function bind(id, handler) {
   });
 }
 
+function wakeStatusText(wake) {
+  if (!wake || !wake.available) return 'Wake: pmset status unavailable.';
+  if (!wake.configured) return 'Wake: not configured. Install Wake schedules a wake shortly before launchd.';
+  return `Wake: ${wake.summary}`;
+}
+
 bind('dry-run', () => run('dry-run'));
 bind('live-run', () => run('live'));
 bind('stop-run', () => request('/api/stop', { method: 'POST' }).then(refresh));
@@ -197,6 +214,8 @@ bind('stop-login', () => request('/api/login/stop', { method: 'POST' }).then(ref
 bind('save-scheduler', saveScheduler);
 bind('save-config', saveConfig);
 bind('install-scheduler', installScheduler);
+bind('install-wake', installWake);
+bind('clear-wake', clearWake);
 bind('enable-scheduler', () => setScheduler(true));
 bind('disable-scheduler', () => setScheduler(false));
 bind('save-allowlist', saveAllowlist);

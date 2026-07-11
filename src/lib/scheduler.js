@@ -1,9 +1,10 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFile } = require('child_process');
+const { execFile, spawnSync } = require('child_process');
 
 const LABEL = 'com.local.instagram-unfollow';
+const DEFAULT_WAKE_LEAD_MINUTES = 5;
 
 function launchAgentPath() {
   return path.join(os.homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
@@ -33,7 +34,35 @@ function readSchedule(rootDir) {
     launchAgentPath: launchAgentPath(),
     hour: hourMatch ? Number(hourMatch[1]) : 9,
     minute: minuteMatch ? Number(minuteMatch[1]) : 0,
-    installed: fs.existsSync(launchAgentPath())
+    installed: fs.existsSync(launchAgentPath()),
+    wake: readWakeSchedule()
+  };
+}
+
+function subtractMinutes(hour, minute, deltaMinutes) {
+  const total = ((Number(hour) * 60 + Number(minute) - Number(deltaMinutes)) + (24 * 60)) % (24 * 60);
+  return {
+    hour: Math.floor(total / 60),
+    minute: total % 60
+  };
+}
+
+function formatClock(hour, minute) {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+}
+
+function readWakeSchedule() {
+  const result = spawnSync('/usr/bin/pmset', ['-g', 'sched'], {
+    encoding: 'utf8',
+    timeout: 5000
+  });
+  const output = `${result.stdout || ''}${result.stderr || ''}`;
+  const repeatLine = output.split(/\r?\n/).find((line) => /wakeorpoweron/i.test(line)) || '';
+  return {
+    available: result.status === 0,
+    configured: Boolean(repeatLine),
+    summary: repeatLine.trim(),
+    raw: output.trim()
   };
 }
 
@@ -48,7 +77,8 @@ async function writeSchedule({ rootDir, hour, minute }) {
   }
 
   const npmPath = process.env.NPM_PATH || '/opt/homebrew/bin/npm';
-  const command = `cd ${rootDir} && ${npmPath} run live`;
+  const caffeinatePath = process.env.CAFFEINATE_PATH || '/usr/bin/caffeinate';
+  const command = `cd ${rootDir} && ${caffeinatePath} -dimsu ${npmPath} run scheduled -- --live`;
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -110,14 +140,32 @@ function launchctl(args) {
   });
 }
 
+function pmset(args) {
+  return new Promise((resolve) => {
+    execFile('/usr/bin/pmset', args, { timeout: 10000 }, (error, stdout, stderr) => {
+      resolve({
+        ok: !error,
+        code: error?.code ?? 0,
+        stdout: String(stdout || ''),
+        stderr: String(stderr || '')
+      });
+    });
+  });
+}
+
 async function installSchedule(rootDir) {
   const source = plistPath(rootDir);
   const target = launchAgentPath();
   await fs.promises.mkdir(path.dirname(target), { recursive: true });
   await fs.promises.copyFile(source, target);
   const uid = process.getuid ? process.getuid() : '';
+  await launchctl(['bootout', `gui/${uid}/${LABEL}`]);
   await launchctl(['bootout', `gui/${uid}`, target]);
-  const bootstrap = await launchctl(['bootstrap', `gui/${uid}`, target]);
+  let bootstrap = await launchctl(['bootstrap', `gui/${uid}`, target]);
+  if (!bootstrap.ok) {
+    await launchctl(['bootout', `gui/${uid}/${LABEL}`]);
+    bootstrap = await launchctl(['bootstrap', `gui/${uid}`, target]);
+  }
   const enable = await launchctl(['enable', `gui/${uid}/${LABEL}`]);
   return { bootstrap, enable, target };
 }
@@ -127,8 +175,28 @@ async function setScheduleEnabled(enabled) {
   return launchctl([enabled ? 'enable' : 'disable', `gui/${uid}/${LABEL}`]);
 }
 
+async function installWakeSchedule({ hour, minute, leadMinutes = DEFAULT_WAKE_LEAD_MINUTES }) {
+  const wake = subtractMinutes(hour, minute, leadMinutes);
+  const time = formatClock(wake.hour, wake.minute);
+  const result = await pmset(['repeat', 'wakeorpoweron', 'MTWRFSU', time]);
+  return {
+    ...result,
+    requestedWakeTime: time,
+    leadMinutes,
+    note: result.ok
+      ? 'Wake schedule installed. Keep the Mac plugged in and do not fully shut it down.'
+      : 'pmset may require administrator permission on this Mac.'
+  };
+}
+
+async function clearWakeSchedule() {
+  return pmset(['repeat', 'cancel']);
+}
+
 module.exports = {
   LABEL,
+  clearWakeSchedule,
+  installWakeSchedule,
   readSchedule,
   writeSchedule,
   installSchedule,

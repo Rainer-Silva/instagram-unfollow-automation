@@ -141,6 +141,16 @@ The local dashboard can update the scheduled hour, minute, and daily cap. It wri
 
 After changing schedule settings in the dashboard, click `Install / Reload` to copy the plist into `~/Library/LaunchAgents`.
 
+The scheduled launchd job uses `caffeinate -dimsu npm run scheduled -- --live`. This keeps the Mac awake while cleanup is running and clears stale locks from the dedicated automation Chrome profile before launch.
+
+Important sleep limits:
+
+- A Mac cannot run browser automation while fully asleep.
+- A locked Mac can run it if the user session is active and the Mac is awake.
+- `Install Wake` in the dashboard calls `pmset repeat wakeorpoweron` to request a wake a few minutes before the launchd time.
+- Wake scheduling is local to your Mac and may require administrator permission depending on macOS settings.
+- For best reliability, keep the Mac plugged in and leave the lid open or use clamshell mode with power/display connected.
+
 Example install flow:
 
 ```bash
@@ -149,7 +159,7 @@ cp config/launchd/com.local.instagram-unfollow.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.local.instagram-unfollow.plist
 ```
 
-The plist uses `npm run live`, so `.env` can remain `DRY_RUN=1` for manual safety while the scheduled job intentionally runs live with the configured daily cap.
+The plist uses `npm run scheduled -- --live`, so `.env` can remain `DRY_RUN=1` for manual safety while the scheduled job intentionally runs live with the configured daily cap.
 
 Adjust paths and timing inside the plist before loading it.
 

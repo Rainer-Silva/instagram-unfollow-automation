@@ -12,6 +12,8 @@ const {
   readSchedule,
   writeSchedule,
   installSchedule,
+  installWakeSchedule,
+  clearWakeSchedule,
   setScheduleEnabled
 } = require('./lib/scheduler');
 
@@ -395,6 +397,21 @@ async function handleApi(req, res, pathname) {
   if (req.method === 'POST' && pathname === '/api/scheduler/enabled') {
     const body = await readJson(req);
     return json(res, 200, { ok: true, result: await setScheduleEnabled(Boolean(body.enabled)) });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/scheduler/wake/install') {
+    const schedule = readSchedule(rootDir);
+    return json(res, 200, {
+      ok: true,
+      result: await installWakeSchedule({
+        hour: schedule.hour,
+        minute: schedule.minute
+      })
+    });
+  }
+
+  if (req.method === 'POST' && pathname === '/api/scheduler/wake/clear') {
+    return json(res, 200, { ok: true, result: await clearWakeSchedule() });
   }
 
   return json(res, 404, { error: 'Not found' });

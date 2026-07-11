@@ -77,7 +77,10 @@ async function loadConfig(argv) {
     startUrl: process.env.START_URL || 'https://www.instagram.com',
     followingUrl: cli.followingUrl || process.env.FOLLOWING_URL || '',
     scrollPauseMinSeconds: parseInteger(process.env.SCROLL_PAUSE_MIN_SECONDS, 2),
-    scrollPauseMaxSeconds: parseInteger(process.env.SCROLL_PAUSE_MAX_SECONDS, 5)
+    scrollPauseMaxSeconds: parseInteger(process.env.SCROLL_PAUSE_MAX_SECONDS, 5),
+    // Path to the optional Notion token config — surfaced here for dashboard/logging use.
+    // The file is read lazily by src/lib/notion.js; the automation works fine without it.
+    notionConfigPath: path.resolve(rootDir, 'config/notion.json')
   };
 
   for (const dir of [config.logDir, config.screenshotDir, config.reportDir, path.dirname(config.statePath)]) {

@@ -1,0 +1,5 @@
+{
+  "_comment": "Copy this file to config/notion.json and fill in your values. config/notion.json is already listed in .gitignore — never commit it.",
+  "token": "secret_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "database_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+}

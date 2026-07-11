@@ -12,6 +12,7 @@ const {
 } = require('./instagram');
 const { categorizeCandidate, sortCandidatesByCategory } = require('./categorize');
 const { saveState } = require('./state');
+const { logUnfollowToNotion } = require('./notion');
 
 async function saveErrorScreenshot(browser, config, label) {
   const file = path.join(
@@ -226,11 +227,19 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
 
       if (config.dryRun) {
         result.skipped += 1;
+        const dryRunAt = new Date().toISOString();
         logger.info('dry_run_candidate', {
           username: candidate.username,
           action: 'would_unfollow',
           reason: candidate.category,
           details: candidate.reason
+        });
+        await logUnfollowToNotion({
+          rootDir:      config.rootDir,
+          handle:       candidate.username,
+          unfollowedAt: dryRunAt,
+          dryRun:       true,
+          category:     candidate.category || ''
         });
       } else {
         logger.info('candidate_selected', {
@@ -240,11 +249,19 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
         });
         const actionResult = await clickUnfollowFromCard(page, candidate, config, logger);
         if (actionResult.confirmed) {
+          const unfollowedAt = new Date().toISOString();
           state.unfollowedToday += 1;
           batchCount += 1;
           result.unfollowed += 1;
-          state.processedUsernames[candidate.username] = { status: 'unfollowed', at: new Date().toISOString() };
+          state.processedUsernames[candidate.username] = { status: 'unfollowed', at: unfollowedAt };
           logger.info('unfollow_complete', { username: candidate.username, dailyCount: state.unfollowedToday });
+          await logUnfollowToNotion({
+            rootDir:      config.rootDir,
+            handle:       candidate.username,
+            unfollowedAt,
+            dryRun:       false,
+            category:     candidate.category || ''
+          });
         } else {
           state.processedUsernames[candidate.username] = { status: 'skipped_no_button', at: new Date().toISOString() };
           result.skipped += 1;

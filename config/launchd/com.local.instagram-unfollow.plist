@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local.instagram-unfollow</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /Users/rainerandrade/Documents/Codex/2026-06-27/build-a-local-instagram-unfollow-automation-2 &amp;&amp; /usr/bin/caffeinate -dimsu /opt/homebrew/bin/npm run scheduled -- --live</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>CHROME_USER_DATA_DIR</key>
+    <string>/Users/rainerandrade/Documents/Codex/2026-06-27/build-a-local-instagram-unfollow-automation-2/work/chrome-automation-profile</string>
+    <key>BROWSER_MODE</key>
+    <string>persistent</string>
+  </dict>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/rainerandrade/Documents/Codex/2026-06-27/build-a-local-instagram-unfollow-automation-2</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>11</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/rainerandrade/Documents/Codex/2026-06-27/build-a-local-instagram-unfollow-automation-2/logs/launchd.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/rainerandrade/Documents/Codex/2026-06-27/build-a-local-instagram-unfollow-automation-2/logs/launchd.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,29 @@
+{
+  "name": "instagram-unfollow-automation-local",
+  "version": "1.0.0",
+  "description": "Local-only, conservative Instagram unfollow automation for macOS using Node.js and Playwright.",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js --dry-run",
+    "live": "node src/index.js --live",
+    "login": "node src/login.js",
+    "chrome:start": "node src/chrome-start.js",
+    "web": "node src/server.js",
+    "scheduled": "node src/scheduled-run.js",
+    "dry-run": "node src/index.js --dry-run",
+    "report": "node src/report.js",
+    "check": "node src/index.js --dry-run --max-unfollows=0",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin"
+  ],
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.47.2"
+  }
+}

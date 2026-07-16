@@ -1,0 +1,6 @@
+# One Instagram username per line.
+# These accounts will never be unfollowed.
+
+instagram
+meta
+alexandrosayeni

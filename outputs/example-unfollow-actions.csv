@@ -1,0 +1,6 @@
+timestamp,level,event,username,action,reason,details
+2026-06-27T09:00:00.000Z,info,run_started,,,,"{""dryRun"":true,""dailyMaxUnfollows"":10}"
+2026-06-27T09:00:10.000Z,info,dry_run_candidate,example_user,would_unfollow,,
+2026-06-27T09:01:00.000Z,info,skip_verified,verified_user,,,
+2026-06-27T09:02:00.000Z,info,skip_allowlist,close_friend,,,
+2026-06-27T09:03:00.000Z,info,run_finished,,,,"{""unfollowed"":0,""skipped"":2,""dryRun"":true}"

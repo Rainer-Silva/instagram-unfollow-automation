@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Local Instagram Manager</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Local-only cleanup assistant</p>
+          <h1>Instagram Manager</h1>
+          <p class="subhead">Conservative unfollow controls, scheduling, logs, and allowlist management from your Mac.</p>
+        </div>
+        <div class="status-pill" id="run-state">Loading</div>
+      </section>
+
+      <section class="grid cards">
+        <article class="card metric">
+          <span>Account</span>
+          <strong id="account">-</strong>
+        </article>
+        <article class="card metric">
+          <span>Removed Today</span>
+          <strong id="removed-today">-</strong>
+        </article>
+        <article class="card metric">
+          <span>Daily Cap</span>
+          <strong id="daily-cap">-</strong>
+        </article>
+        <article class="card metric">
+          <span>Remaining</span>
+          <strong id="remaining">-</strong>
+        </article>
+      </section>
+
+      <section class="grid two">
+        <article class="card">
+          <h2>Cleanup Target</h2>
+          <p class="muted">This must match the Instagram account currently logged into the automation Chrome profile. Changing target does not switch Instagram accounts.</p>
+          <label>
+            Logged-in Instagram username
+            <input id="target-account" type="text" placeholder="rainermax_suecia" autocomplete="off">
+          </label>
+          <label>
+            Following URL override for that same logged-in account
+            <input id="following-url" type="url" placeholder="Optional: https://www.instagram.com/username/following/">
+          </label>
+          <p class="warning-note">To clean a different Instagram account, first log into that account with the local Chrome automation profile, then update this username.</p>
+          <div class="login-box">
+            <h3>Manual Login Assistant</h3>
+            <p class="muted">Opens visible Chrome and waits while you log in yourself. No password is stored or typed by this app.</p>
+            <div class="actions">
+              <button id="start-login" class="secondary">Open Login Window</button>
+              <button id="stop-login" class="secondary">Stop Login Wait</button>
+            </div>
+            <p class="muted" id="login-status">Login assistant idle.</p>
+            <pre id="login-output" class="terminal compact"></pre>
+          </div>
+          <div class="mode-switch">
+            <label class="check">
+              <input id="mode-categories" name="cleanup-mode" type="radio" value="categories">
+              Clean selected categories
+            </label>
+            <label class="check">
+              <input id="mode-all" name="cleanup-mode" type="radio" value="all">
+              Clean all follows, except verified and allowlist
+            </label>
+          </div>
+          <div class="category-grid" id="category-grid"></div>
+          <div class="actions">
+            <button id="save-config">Save Cleanup Settings</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Run Control</h2>
+          <p class="muted">Live mode opens visible Chrome and uses the dedicated local automation profile. Stop immediately if Instagram warns.</p>
+          <label>
+            Max unfollows for this run
+            <input id="run-max" type="number" min="0" max="500" value="50">
+          </label>
+          <div class="actions">
+            <button id="dry-run">Dry Run</button>
+            <button id="live-run" class="danger">Live Run</button>
+            <button id="stop-run" class="secondary">Stop</button>
+          </div>
+          <pre id="run-output" class="terminal"></pre>
+        </article>
+      </section>
+
+      <section class="grid two">
+        <article class="card">
+          <h2>Scheduler</h2>
+          <p class="muted">These settings update `.env` and the local launchd plist. Install/reload after changing time.</p>
+          <div class="row">
+            <label>
+              Hour
+              <input id="schedule-hour" type="number" min="0" max="23">
+            </label>
+            <label>
+              Minute
+              <input id="schedule-minute" type="number" min="0" max="59">
+            </label>
+          </div>
+          <label>
+            Scheduled daily cap
+            <input id="schedule-max" type="number" min="0" max="500">
+          </label>
+          <label class="check">
+            <input id="schedule-live" type="checkbox">
+            Run scheduled job in live mode
+          </label>
+          <div class="actions">
+            <button id="save-scheduler">Save</button>
+            <button id="install-scheduler" class="secondary">Install / Reload</button>
+            <button id="install-wake" class="secondary">Install Wake</button>
+            <button id="clear-wake" class="secondary">Clear Wake</button>
+            <button id="enable-scheduler" class="secondary">Enable</button>
+            <button id="disable-scheduler" class="secondary">Disable</button>
+          </div>
+          <p class="muted" id="scheduler-path"></p>
+          <p class="muted" id="wake-status"></p>
+        </article>
+      </section>
+
+      <section class="grid two">
+        <article class="card">
+          <h2>Allowlist</h2>
+          <p class="muted">One username per line. These accounts are never unfollowed.</p>
+          <textarea id="allowlist" spellcheck="false"></textarea>
+          <div class="actions">
+            <button id="save-allowlist">Save Allowlist</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Safety</h2>
+          <ul class="safety-list">
+            <li id="delay-range">Delay: -</li>
+            <li id="cooldown">Cooldown: -</li>
+            <li id="skip-personal">Personal accounts: -</li>
+            <li>Headless mode: never</li>
+            <li>Credentials stored: never</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="grid two">
+        <article class="card">
+          <h2>Daily Report</h2>
+          <pre id="report" class="panel"></pre>
+        </article>
+        <article class="card">
+          <h2>Recent Log</h2>
+          <pre id="log" class="panel"></pre>
+        </article>
+      </section>
+    </main>
+    <dialog id="live-confirm-dialog" class="confirm-dialog">
+      <form method="dialog">
+        <h2>Confirm Live Unfollowing</h2>
+        <div id="live-confirm-details" class="confirm-details"></div>
+        <p class="warning-note">Account classification can be wrong.</p>
+        <p class="warning-note">Instagram may restrict, challenge, action block, suspend, or otherwise protect the account.</p>
+        <div class="actions">
+          <button value="cancel" class="secondary">Cancel</button>
+          <button id="confirm-live-start" value="confirm" class="danger">Start live unfollowing</button>
+        </div>
+      </form>
+    </dialog>
+    <script src="/app.js"></script>
+  </body>
+</html>

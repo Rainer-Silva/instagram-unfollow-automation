@@ -9,9 +9,4 @@ screenshots/*
 reports/*
 !reports/.gitkeep
 node_modules
-work/chrome-profile/*
-!work/chrome-profile/.gitkeep
-work/chrome-debug-profile/*
-!work/chrome-debug-profile/.gitkeep
-work/chrome-automation-profile/*
-!work/chrome-automation-profile/.gitkeep
+work/

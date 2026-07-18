@@ -12,6 +12,7 @@ const {
 } = require('./instagram');
 const { categorizeCandidate, sortCandidatesByCategory } = require('./categorize');
 const { saveState } = require('./state');
+const { publicUsername, usernameKey } = require('./privacy');
 
 const RESERVED_PATHS = new Set([
   'about',
@@ -96,18 +97,19 @@ async function scanVisibleCandidates(page, config, logger, state, allowlist, ses
         logger.debug('skip_invalid_username', { username });
         continue;
       }
-      if (sessionSeenUsernames.has(username)) continue;
-      sessionSeenUsernames.add(username);
+      const key = usernameKey(config, username);
+      if (sessionSeenUsernames.has(key)) continue;
+      sessionSeenUsernames.add(key);
       if (allowlist.has(username)) {
         logger.info('skip_allowlist', { username });
         continue;
       }
-      if (state.processedUsernames[username]) {
+      if (state.processedUsernames[key]) {
         logger.debug('skip_resumed', { username });
         continue;
       }
       const category = categorizeCandidate({ username, rowText });
-      candidates.push({ button, username, rowText, control: button, ...category });
+      candidates.push({ button, username, key, rowText, control: button, ...category });
     }
     return sortCandidatesByCategory(candidates);
   }
@@ -122,20 +124,21 @@ async function scanVisibleCandidates(page, config, logger, state, allowlist, ses
       logger.debug('skip_invalid_username', { username });
       continue;
     }
-    if (sessionSeenUsernames.has(username)) {
+    const key = usernameKey(config, username);
+    if (sessionSeenUsernames.has(key)) {
       continue;
     }
-    sessionSeenUsernames.add(username);
+    sessionSeenUsernames.add(key);
     if (allowlist.has(username)) {
       logger.info('skip_allowlist', { username });
       continue;
     }
-    if (state.processedUsernames[username]) {
+    if (state.processedUsernames[key]) {
       logger.debug('skip_resumed', { username });
       continue;
     }
     const category = categorizeCandidate({ username, rowText });
-    candidates.push({ card, username, rowText, control: card, ...category });
+    candidates.push({ card, username, key, rowText, control: card, ...category });
   }
 
   return sortCandidatesByCategory(candidates);
@@ -215,7 +218,7 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
       const candidateScope = candidate.card || candidate.control || candidate.button;
       const isVer = await candidateScope.locator('svg[aria-label*="Verified"], span[aria-label*="Verified"], [aria-label*="Verified"]').first().count().catch(() => 0);
       if (isVer) {
-        state.processedUsernames[candidate.username] = { status: 'skipped_verified', at: new Date().toISOString() };
+        state.processedUsernames[candidate.key] = { status: 'skipped_verified', at: new Date().toISOString() };
         result.verifiedSkipped += 1;
         result.skipped += 1;
         logger.info('skip_verified', { username: candidate.username });
@@ -227,7 +230,7 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
         && candidate.category === 'person_or_uncategorized'
         && !isCategoryEligible(config, candidate.category)
       ) {
-        state.processedUsernames[candidate.username] = {
+        state.processedUsernames[candidate.key] = {
           status: 'skipped_personal_uncategorized',
           at: new Date().toISOString()
         };
@@ -244,7 +247,7 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
       }
 
       if (!isCategoryEligible(config, candidate.category)) {
-        state.processedUsernames[candidate.username] = {
+        state.processedUsernames[candidate.key] = {
           status: 'skipped_category_not_selected',
           category: candidate.category,
           at: new Date().toISOString()
@@ -280,17 +283,17 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
           state.unfollowedToday += 1;
           batchCount += 1;
           result.unfollowed += 1;
-          state.processedUsernames[candidate.username] = { status: 'unfollowed', at: new Date().toISOString() };
+          state.processedUsernames[candidate.key] = { status: 'unfollowed', at: new Date().toISOString() };
           logger.info('unfollow_complete', { username: candidate.username, dailyCount: state.unfollowedToday });
         } else {
-          state.processedUsernames[candidate.username] = { status: 'skipped_no_button', at: new Date().toISOString() };
+          state.processedUsernames[candidate.key] = { status: 'skipped_no_button', at: new Date().toISOString() };
           result.skipped += 1;
           logger.warn('skip_no_following_button', { username: candidate.username });
         }
       }
 
       if (!config.dryRun) {
-        state.lastSeenUsername = candidate.username;
+        state.lastSeenUsername = publicUsername(config, candidate.username);
         await saveState(config, state);
       }
 

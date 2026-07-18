@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { localDateString } = require('./date');
 
 function parseCsvLine(line) {
   const result = [];
@@ -46,7 +47,7 @@ function loadDailyRows(logPath) {
 }
 
 async function generateDailyReport({ config, logger, state, result }) {
-  const date = new Date().toISOString().slice(0, 10);
+  const date = localDateString();
   const logPath = path.join(config.logDir, `unfollow-actions-${date}.csv`);
   const reportPath = path.join(config.reportDir, `daily-summary-${date}.md`);
   const rows = loadDailyRows(logPath);

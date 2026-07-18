@@ -129,6 +129,14 @@ This project stores operational data locally. Local files may contain sensitive 
 - Error screenshots
 - Browser session cookies and cached login data in the dedicated Chrome profile
 
+By default, runtime logs and state redact account usernames:
+
+```bash
+REDACT_USERNAMES=1
+```
+
+With redaction enabled, CSV logs use `[redacted]` for usernames and daily resume state stores hashed keys instead of raw usernames.
+
 Do not:
 
 - Commit `.env`

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { loadConfig } = require('./lib/config');
+const { localDateString } = require('./lib/date');
 
 function pidIsAlive(pid) {
   if (!pid) return false;
@@ -34,7 +35,7 @@ async function main() {
   const metaPath = path.join(config.rootDir, 'config', 'detached-run.json');
   const pid = fs.existsSync(pidPath) ? Number(fs.readFileSync(pidPath, 'utf8').trim()) : null;
   const state = readJson(config.statePath) || {};
-  const date = new Date().toISOString().slice(0, 10);
+  const date = localDateString();
   const logPath = path.join(config.logDir, `unfollow-actions-${date}.csv`);
   const meta = readJson(metaPath);
 

@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const { localDateString } = require('./date');
+const { publicUsername } = require('./privacy');
 
 function csvEscape(value) {
   const str = value === undefined || value === null ? '' : String(value);
@@ -14,10 +16,19 @@ function nowIso() {
 }
 
 function createLogger(config) {
-  const date = nowIso().slice(0, 10);
+  const date = localDateString();
   const csvPath = path.join(config.logDir, `unfollow-actions-${date}.csv`);
   const stream = fs.createWriteStream(csvPath, { flags: 'a' });
   let headerWritten = fs.existsSync(csvPath) && fs.statSync(csvPath).size > 0;
+
+  function sanitizePayload(payload = {}) {
+    if (!config.redactUsernames) return payload;
+    const sanitized = { ...payload };
+    if (Object.prototype.hasOwnProperty.call(sanitized, 'username')) {
+      sanitized.username = publicUsername(config, sanitized.username);
+    }
+    return sanitized;
+  }
 
   function writeCsv(row) {
     if (!headerWritten) {
@@ -44,15 +55,16 @@ function createLogger(config) {
   }
 
   function log(level, event, payload = {}) {
+    const safePayload = sanitizePayload(payload);
     const entry = {
       timestamp: nowIso(),
       level,
       event,
-      ...payload
+      ...safePayload
     };
     writeCsv(entry);
     if (config.debug || level !== 'debug') {
-      const suffix = Object.keys(payload).length ? ` ${JSON.stringify(payload)}` : '';
+      const suffix = Object.keys(safePayload).length ? ` ${JSON.stringify(safePayload)}` : '';
       console.log(`[${entry.timestamp}] ${level.toUpperCase()} ${event}${suffix}`);
     }
   }

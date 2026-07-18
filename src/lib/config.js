@@ -84,7 +84,8 @@ async function loadConfig(argv) {
     startUrl: process.env.START_URL || 'https://www.instagram.com',
     followingUrl: validateInstagramUrl(cli.followingUrl || process.env.FOLLOWING_URL || ''),
     scrollPauseMinSeconds: parseInteger(process.env.SCROLL_PAUSE_MIN_SECONDS, 2),
-    scrollPauseMaxSeconds: parseInteger(process.env.SCROLL_PAUSE_MAX_SECONDS, 5)
+    scrollPauseMaxSeconds: parseInteger(process.env.SCROLL_PAUSE_MAX_SECONDS, 5),
+    redactUsernames: parseBoolean(process.env.REDACT_USERNAMES, true)
   };
 
   for (const dir of [config.logDir, config.screenshotDir, config.reportDir, path.dirname(config.statePath)]) {

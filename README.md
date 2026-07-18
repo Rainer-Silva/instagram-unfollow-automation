@@ -72,7 +72,16 @@ Users are solely responsible for how they use this software and assume all assoc
    npm run live -- --confirm-live
    ```
 
-7. Start the local web dashboard:
+7. For long live runs started from Codex or another terminal you may close, prefer detached mode:
+
+   ```bash
+   npm run live:detached -- --confirm-live --max-unfollows=150
+   npm run status
+   ```
+
+   Detached mode starts the cleaner under `caffeinate`, writes PID metadata to `config/detached-run.*`, and sends stdout/stderr to `logs/detached-run-*.log`. This prevents long cooldowns from being killed when the launching terminal session ends.
+
+8. Start the local web dashboard:
 
    ```bash
    npm run web

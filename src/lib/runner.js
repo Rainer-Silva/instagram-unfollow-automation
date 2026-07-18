@@ -182,6 +182,13 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
     if (!candidates.length) {
       logger.debug('no_candidates_visible', { loops });
       const snapshot = await getFollowingCards(page);
+      if (snapshot.mode === 'missing_dialog') {
+        logger.warn('following_dialog_missing_reopen', { loops });
+        await openFollowingList(page, config, logger);
+        lastVisibleTotal = 0;
+        stagnantScrolls = 0;
+        continue;
+      }
       if (snapshot.total > lastVisibleTotal) {
         lastVisibleTotal = snapshot.total;
         stagnantScrolls = 0;

@@ -308,13 +308,21 @@ async function clickUnfollowFromCard(page, candidate, config, logger) {
   const role = await control.evaluate((el) => el.tagName.toLowerCase()).catch(() => '');
   const clickButton = async (button) => {
     if (config.dryRun) return { action: 'dry_run_unfollow', confirmed: false };
-    await button.click({ timeout: 5000 });
-    await page.waitForTimeout(1000);
-    const dialogButton = page.getByRole('dialog').getByRole('button', { name: /unfollow/i }).first();
-    if (await dialogButton.count().catch(() => 0)) {
-      await dialogButton.click({ timeout: 5000 });
-    } else {
-      await page.getByRole('button', { name: /^unfollow$/i }).first().click({ timeout: 5000 });
+    try {
+      await button.click({ timeout: 5000 });
+      await page.waitForTimeout(1000);
+      const dialogButton = page.getByRole('dialog').getByRole('button', { name: /unfollow/i }).first();
+      if (await dialogButton.count().catch(() => 0)) {
+        await dialogButton.click({ timeout: 5000 });
+      } else {
+        await page.getByRole('button', { name: /^unfollow$/i }).first().click({ timeout: 5000 });
+      }
+    } catch (error) {
+      logger.warn('unfollow_click_failed', {
+        username: candidate.username,
+        message: error.message
+      });
+      return { action: 'click_failed', confirmed: false };
     }
     logger.info('unfollow_clicked', {});
     return { action: 'unfollowed', confirmed: true };

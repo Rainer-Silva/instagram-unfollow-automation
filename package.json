@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/index.js --dry-run",
     "live": "node src/index.js --live",
+    "live:detached": "node src/run-detached.js --live",
     "login": "node src/login.js",
     "chrome:start": "node src/chrome-start.js",
     "web": "node src/server.js",
@@ -14,6 +15,7 @@
     "dry-run": "node src/index.js --dry-run",
     "report": "node src/report.js",
     "check": "node src/index.js --dry-run --max-unfollows=0",
+    "status": "node src/status.js",
     "test": "node --test"
   },
   "engines": {

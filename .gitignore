@@ -2,6 +2,8 @@
 .DS_Store
 *.dataless-backup
 config/state.json
+config/detached-run.pid
+config/detached-run.json
 logs/*
 !logs/.gitkeep
 screenshots/*

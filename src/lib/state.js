@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const { localDateString } = require('./date');
 
 const defaultState = {
@@ -9,6 +10,27 @@ const defaultState = {
   lastSeenUsername: null,
   lastRunAt: null
 };
+
+function countLoggedUnfollows(config, date) {
+  if (!config.logDir) return 0;
+  const logPath = path.join(config.logDir, `unfollow-actions-${date}.csv`);
+  try {
+    return fs.readFileSync(logPath, 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => line.includes(',unfollow_complete,'))
+      .length;
+  } catch {
+    return 0;
+  }
+}
+
+function reconcileLoggedCount(config, state) {
+  const loggedCount = countLoggedUnfollows(config, state.date || localDateString());
+  if (loggedCount > Number(state.unfollowedToday || 0)) {
+    state.unfollowedToday = loggedCount;
+  }
+  return state;
+}
 
 async function loadState(config, logger) {
   try {
@@ -26,14 +48,14 @@ async function loadState(config, logger) {
           .filter(([, value]) => value?.status === 'unfollowed')
       );
     }
-    return state;
+    return reconcileLoggedCount(config, state);
   } catch (error) {
     logger?.info('state_init', { path: config.statePath });
-    return {
+    return reconcileLoggedCount(config, {
       ...defaultState,
       date: localDateString(),
       targetAccount: config.instagramUsername || config.followingUrl || 'default'
-    };
+    });
   }
 }
 

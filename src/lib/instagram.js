@@ -344,6 +344,61 @@ async function clickUnfollowFromCard(page, candidate, config, logger) {
   return { action: 'no_following_button', confirmed: false };
 }
 
+async function clickNextVisibleFollowingButton(page, config, logger) {
+  if (config.dryRun) return { action: 'dry_run_unfollow', confirmed: false };
+
+  const target = await page.evaluate(() => {
+    const isVisible = (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return rect.width > 20
+        && rect.height > 10
+        && rect.bottom > 0
+        && rect.right > 0
+        && rect.top < window.innerHeight
+        && rect.left < window.innerWidth
+        && style.visibility !== 'hidden'
+        && style.display !== 'none'
+        && !element.disabled;
+    };
+
+    const dialog = document.querySelector('[role="dialog"]');
+    const scope = dialog || document.body;
+    const controls = [...scope.querySelectorAll('button, div[role="button"]')];
+    const button = controls.find((element) => {
+      const text = String(element.innerText || element.textContent || '').trim();
+      return /^Following$/i.test(text) && isVisible(element);
+    });
+    if (!button) return null;
+    const rect = button.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+      text: String(button.innerText || button.textContent || '').trim()
+    };
+  }).catch(() => null);
+
+  if (!target) return { action: 'no_visible_following_button', confirmed: false };
+
+  try {
+    logger.info('simple_following_button_selected', { text: target.text });
+    await page.mouse.click(target.x, target.y);
+    await page.waitForTimeout(1000);
+    const dialogButton = page.getByRole('dialog').getByRole('button', { name: /unfollow/i }).first();
+    if (await dialogButton.count().catch(() => 0)) {
+      await dialogButton.click({ timeout: 5000 });
+    } else {
+      await page.getByRole('button', { name: /^unfollow$/i }).first().click({ timeout: 5000 });
+    }
+  } catch (error) {
+    logger.warn('simple_unfollow_click_failed', { message: error.message });
+    return { action: 'click_failed', confirmed: false };
+  }
+
+  logger.info('unfollow_clicked', {});
+  return { action: 'unfollowed', confirmed: true };
+}
+
 module.exports = {
   sleep,
   randomInt,
@@ -355,6 +410,7 @@ module.exports = {
   checkSafetyStop,
   openFollowingList,
   clickUnfollowFromCard,
+  clickNextVisibleFollowingButton,
   dismissCookieDialog,
   assertLoggedIn,
   preferRecentFollowingSort

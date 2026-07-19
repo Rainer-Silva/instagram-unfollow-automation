@@ -38,6 +38,7 @@ async function main() {
   const date = localDateString();
   const logPath = path.join(config.logDir, `unfollow-actions-${date}.csv`);
   const meta = readJson(metaPath);
+  const loggedUnfollowComplete = countEvent(logPath, 'unfollow_complete');
 
   console.log(JSON.stringify({
     running: pidIsAlive(pid),
@@ -45,11 +46,11 @@ async function main() {
     detachedStartedAt: meta?.startedAt || null,
     targetAccount: state.targetAccount || config.instagramUsername,
     date: state.date || date,
-    unfollowedToday: state.unfollowedToday || 0,
+    unfollowedToday: Math.max(Number(state.unfollowedToday || 0), loggedUnfollowComplete),
     maxUnfollows: config.dailyMaxUnfollows,
     lastSeenUsername: state.lastSeenUsername || null,
     lastRunAt: state.lastRunAt || null,
-    loggedUnfollowComplete: countEvent(logPath, 'unfollow_complete'),
+    loggedUnfollowComplete,
     logPath
   }, null, 2));
 }

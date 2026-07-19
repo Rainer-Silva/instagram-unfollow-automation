@@ -8,6 +8,7 @@ const {
   checkSafetyStop,
   openFollowingList,
   clickUnfollowFromCard,
+  clickNextVisibleFollowingButton,
   humanScroll
 } = require('./instagram');
 const { categorizeCandidate, sortCandidatesByCategory } = require('./categorize');
@@ -93,23 +94,38 @@ async function scanVisibleCandidates(page, config, logger, state, allowlist, ses
     for (let i = 0; i < snapshot.total; i += 1) {
       const button = snapshot.buttons.nth(i);
       const { username, rowText } = await describeButtonCandidate(button);
-      if (!isLikelyInstagramUsername(username)) {
+      if (!isLikelyInstagramUsername(username) && !config.simpleCountMode) {
         logger.debug('skip_invalid_username', { username });
         continue;
       }
-      const key = usernameKey(config, username);
+      const key = isLikelyInstagramUsername(username)
+        ? usernameKey(config, username)
+        : `visible-button-${loops}-${i}`;
       if (sessionSeenUsernames.has(key)) continue;
       sessionSeenUsernames.add(key);
-      if (allowlist.has(username)) {
+      if (config.respectAllowlist && isLikelyInstagramUsername(username) && allowlist.has(username)) {
         logger.info('skip_allowlist', { username });
         continue;
       }
-      if (state.processedUsernames[key]) {
+      if (isLikelyInstagramUsername(username) && state.processedUsernames[key]) {
         logger.debug('skip_resumed', { username });
         continue;
       }
-      const category = categorizeCandidate({ username, rowText });
-      candidates.push({ button, username, key, rowText, control: button, ...category });
+      const category = config.simpleCountMode
+        ? {
+            category: 'simple_count_mode',
+            reason: 'next visible Following button',
+            priority: 0
+          }
+        : categorizeCandidate({ username, rowText });
+      candidates.push({
+        button,
+        username: isLikelyInstagramUsername(username) ? username : `visible-${i + 1}`,
+        key,
+        rowText,
+        control: button,
+        ...category
+      });
     }
     return sortCandidatesByCategory(candidates);
   }
@@ -120,25 +136,40 @@ async function scanVisibleCandidates(page, config, logger, state, allowlist, ses
     const href = await link.getAttribute('href').catch(() => '');
     const username = normalizeUsername((href || '').split('/').filter(Boolean)[0] || await link.textContent().catch(() => ''));
     const rowText = String(await card.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
-    if (!isLikelyInstagramUsername(username)) {
+    if (!isLikelyInstagramUsername(username) && !config.simpleCountMode) {
       logger.debug('skip_invalid_username', { username });
       continue;
     }
-    const key = usernameKey(config, username);
+    const key = isLikelyInstagramUsername(username)
+      ? usernameKey(config, username)
+      : `visible-row-${loops}-${i}`;
     if (sessionSeenUsernames.has(key)) {
       continue;
     }
     sessionSeenUsernames.add(key);
-    if (allowlist.has(username)) {
+    if (config.respectAllowlist && isLikelyInstagramUsername(username) && allowlist.has(username)) {
       logger.info('skip_allowlist', { username });
       continue;
     }
-    if (state.processedUsernames[key]) {
+    if (isLikelyInstagramUsername(username) && state.processedUsernames[key]) {
       logger.debug('skip_resumed', { username });
       continue;
     }
-    const category = categorizeCandidate({ username, rowText });
-    candidates.push({ card, username, key, rowText, control: card, ...category });
+    const category = config.simpleCountMode
+      ? {
+          category: 'simple_count_mode',
+          reason: 'next visible Following row',
+          priority: 0
+        }
+      : categorizeCandidate({ username, rowText });
+    candidates.push({
+      card,
+      username: isLikelyInstagramUsername(username) ? username : `visible-${i + 1}`,
+      key,
+      rowText,
+      control: card,
+      ...category
+    });
   }
 
   return sortCandidatesByCategory(candidates);
@@ -174,12 +205,42 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
   let loops = 0;
   let lastVisibleTotal = 0;
   let stagnantScrolls = 0;
+  let reopenCycles = 0;
   const sessionSeenUsernames = new Set();
 
   while (state.unfollowedToday < config.dailyMaxUnfollows && loops < 1000) {
     loops += 1;
     const warning = await checkSafetyStop(page);
     if (warning) throw new Error(`Safety stop: ${warning}`);
+
+    if (config.simpleCountMode && !config.dryRun) {
+      const actionResult = await clickNextVisibleFollowingButton(page, config, logger);
+      if (actionResult.confirmed) {
+        state.unfollowedToday += 1;
+        batchCount += 1;
+        result.unfollowed += 1;
+        state.processedUsernames[`simple-${Date.now()}`] = {
+          status: 'unfollowed',
+          at: new Date().toISOString()
+        };
+        state.lastSeenUsername = '[simple-count-mode]';
+        logger.info('unfollow_complete', {
+          username: '[simple-count-mode]',
+          dailyCount: state.unfollowedToday
+        });
+        await saveState(config, state);
+        await sleep(delaySeconds(config.minDelaySeconds, config.maxDelaySeconds));
+
+        if (batchCount >= config.batchSize) {
+          const cooldownMinutes = randomInt(config.batchCooldownMinutesMin, config.batchCooldownMinutesMax);
+          logger.warn('batch_cooldown', { batchSize: batchCount, cooldownMinutes });
+          await sleep(cooldownMinutes * 60 * 1000);
+          batchCount = 0;
+        }
+        continue;
+      }
+      logger.debug('simple_no_visible_following_button', { loops });
+    }
 
     const candidates = await scanVisibleCandidates(page, config, logger, state, allowlist, sessionSeenUsernames);
     if (!candidates.length) {
@@ -199,6 +260,19 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
         stagnantScrolls += 1;
       }
       if (stagnantScrolls >= 12) {
+        if (reopenCycles < 8 && state.unfollowedToday < config.dailyMaxUnfollows) {
+          reopenCycles += 1;
+          logger.warn('reopen_after_stagnant_rows', {
+            visibleTotal: snapshot.total,
+            stagnantScrolls,
+            reopenCycles
+          });
+          await openFollowingList(page, config, logger);
+          sessionSeenUsernames.clear();
+          lastVisibleTotal = 0;
+          stagnantScrolls = 0;
+          continue;
+        }
         logger.warn('stopping_no_new_rows', {
           visibleTotal: snapshot.total,
           stagnantScrolls
@@ -209,6 +283,7 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
       continue;
     }
     stagnantScrolls = 0;
+    reopenCycles = 0;
 
     for (const candidate of candidates) {
       if (state.unfollowedToday >= config.dailyMaxUnfollows) break;
@@ -216,8 +291,10 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
       if (currentWarning) throw new Error(`Safety stop: ${currentWarning}`);
 
       const candidateScope = candidate.card || candidate.control || candidate.button;
-      const isVer = await candidateScope.locator('svg[aria-label*="Verified"], span[aria-label*="Verified"], [aria-label*="Verified"]').first().count().catch(() => 0);
-      if (isVer) {
+      const isVer = config.skipVerified
+        ? await candidateScope.locator('svg[aria-label*="Verified"], span[aria-label*="Verified"], [aria-label*="Verified"]').first().count().catch(() => 0)
+        : 0;
+      if (config.skipVerified && isVer) {
         if (config.storeSkippedUsernames) {
           state.processedUsernames[candidate.key] = { status: 'skipped_verified', at: new Date().toISOString() };
         }
@@ -313,6 +390,10 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
         await sleep(cooldownMinutes * 60 * 1000);
         batchCount = 0;
       }
+
+      // Instagram virtualizes/re-renders the following dialog after each action.
+      // Re-scan immediately so we do not keep stale locators from the previous DOM.
+      if (!config.dryRun) break;
     }
   }
 

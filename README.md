@@ -36,6 +36,7 @@ Users are solely responsible for how they use this software and assume all assoc
 - Does not store Instagram credentials in code
 - Uses a dedicated local Chrome session cache instead of asking for a password in code
 - Stops immediately if Instagram shows a challenge, warning, or action-block message
+- Stops if the home feed degrades into a suggestion-only/follow-people screen during batch checks
 - Adds randomized waits between configured actions
 - Adds a longer cooldown after every 10 unfollows
 
@@ -91,7 +92,7 @@ Users are solely responsible for how they use this software and assume all assoc
 
    The dashboard can change the Instagram username/profile being cleaned, open a manual login window, choose all follows or selected categories, edit the allowlist, launch dry-run/live runs, and adjust scheduler time/count.
 
-   The recommended daily run cap is `100`. Users can intentionally choose a different cap in the dashboard or CLI, but higher limits increase account-risk exposure and still require explicit live confirmation.
+   The recommended daily run cap is `50` or lower. Users can intentionally choose a different cap in the dashboard or CLI, but higher limits increase account-risk exposure and still require explicit live confirmation.
 
    Changing the cleanup target resets local daily/resume state for safety, so processed usernames from one account are not reused for another account.
 
@@ -172,6 +173,22 @@ SKIP_PERSONAL_ACCOUNTS=0
 This keeps the tool simple and focused on reaching the configured daily count. Candidates are still sorted so obvious business/product/public pages tend to be attempted first, but personal-looking accounts are no longer skipped by default.
 
 Verified accounts and allowlisted accounts are still skipped.
+
+For maximum count-driven cleanup, the local config can set:
+
+```bash
+SIMPLE_COUNT_MODE=1
+```
+
+This clicks the next visible `Following` control instead of spending time classifying accounts. It is faster and simpler, but less selective.
+
+The feed-health guard is enabled by default:
+
+```bash
+HOME_FEED_HEALTH_CHECK=1
+```
+
+After each batch, the tool visits the home feed. If Instagram only shows follow suggestions and no normal post signals, the run stops as an account-risk signal.
 
 ## Daily scheduling
 

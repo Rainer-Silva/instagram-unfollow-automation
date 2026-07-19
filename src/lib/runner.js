@@ -6,6 +6,7 @@ const {
   normalizeUsername,
   loadAllowlist,
   checkSafetyStop,
+  checkHomeFeedHealth,
   openFollowingList,
   clickUnfollowFromCard,
   clickNextVisibleFollowingButton,
@@ -208,6 +209,25 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
   let reopenCycles = 0;
   const sessionSeenUsernames = new Set();
 
+  const runBatchCooldown = async () => {
+    const health = await checkHomeFeedHealth(page, config, logger);
+    if (!health.ok) {
+      throw new Error(`Safety stop: ${health.reason}`);
+    }
+
+    const cooldownMinutes = randomInt(config.batchCooldownMinutesMin, config.batchCooldownMinutesMax);
+    logger.warn('batch_cooldown', { batchSize: batchCount, cooldownMinutes });
+    await sleep(cooldownMinutes * 60 * 1000);
+    batchCount = 0;
+
+    if (config.homeFeedHealthCheck && state.unfollowedToday < config.dailyMaxUnfollows) {
+      await openFollowingList(page, config, logger);
+      sessionSeenUsernames.clear();
+      lastVisibleTotal = 0;
+      stagnantScrolls = 0;
+    }
+  };
+
   while (state.unfollowedToday < config.dailyMaxUnfollows && loops < 1000) {
     loops += 1;
     const warning = await checkSafetyStop(page);
@@ -232,10 +252,7 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
         await sleep(delaySeconds(config.minDelaySeconds, config.maxDelaySeconds));
 
         if (batchCount >= config.batchSize) {
-          const cooldownMinutes = randomInt(config.batchCooldownMinutesMin, config.batchCooldownMinutesMax);
-          logger.warn('batch_cooldown', { batchSize: batchCount, cooldownMinutes });
-          await sleep(cooldownMinutes * 60 * 1000);
-          batchCount = 0;
+          await runBatchCooldown();
         }
         continue;
       }
@@ -385,10 +402,7 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
       await sleep(config.dryRun ? 1000 : delaySeconds(config.minDelaySeconds, config.maxDelaySeconds));
 
       if (!config.dryRun && batchCount >= config.batchSize) {
-        const cooldownMinutes = randomInt(config.batchCooldownMinutesMin, config.batchCooldownMinutesMax);
-        logger.warn('batch_cooldown', { batchSize: batchCount, cooldownMinutes });
-        await sleep(cooldownMinutes * 60 * 1000);
-        batchCount = 0;
+        await runBatchCooldown();
       }
 
       // Instagram virtualizes/re-renders the following dialog after each action.

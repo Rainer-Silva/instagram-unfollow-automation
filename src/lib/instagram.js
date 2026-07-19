@@ -91,6 +91,29 @@ async function checkSafetyStop(page) {
   return detectWarningText(bodyText);
 }
 
+async function checkHomeFeedHealth(page, config, logger) {
+  if (!config.homeFeedHealthCheck) return { ok: true, reason: 'disabled' };
+
+  await page.goto(config.startUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.waitForTimeout(5000);
+
+  const warning = await checkSafetyStop(page);
+  if (warning) return { ok: false, reason: warning };
+
+  const bodyText = await page.locator('body').innerText({ timeout: 5000 }).catch(() => '');
+  const lower = bodyText.toLowerCase();
+  const hasSuggestionSignals = /suggested for you|find people to follow|start following|follow people/.test(lower);
+  const hasPostSignals = /liked by|view all comments|add a comment|original audio|reels audio|sponsored|\b\d+\s*(h|d|w)\b/.test(lower);
+
+  if (hasSuggestionSignals && !hasPostSignals) {
+    logger?.warn('home_feed_only_suggestions', {});
+    return { ok: false, reason: 'home feed is only showing follow suggestions' };
+  }
+
+  logger?.debug('home_feed_health_ok', {});
+  return { ok: true, reason: 'post signals present or no suggestion-only state detected' };
+}
+
 async function dismissCookieDialog(page, logger) {
   const buttons = [
     page.getByRole('button', { name: /Decline optional cookies/i }).first(),
@@ -408,6 +431,7 @@ module.exports = {
   loadAllowlist,
   detectWarningText,
   checkSafetyStop,
+  checkHomeFeedHealth,
   openFollowingList,
   clickUnfollowFromCard,
   clickNextVisibleFollowingButton,

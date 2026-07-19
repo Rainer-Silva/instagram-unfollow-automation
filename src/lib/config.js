@@ -84,6 +84,7 @@ async function loadConfig(argv) {
     simpleCountMode: parseBoolean(process.env.SIMPLE_COUNT_MODE, cleanupMode === 'all'),
     respectAllowlist: parseBoolean(process.env.RESPECT_ALLOWLIST, true),
     skipVerified: parseBoolean(process.env.SKIP_VERIFIED, true),
+    homeFeedHealthCheck: parseBoolean(process.env.HOME_FEED_HEALTH_CHECK, true),
     startUrl: process.env.START_URL || 'https://www.instagram.com',
     followingUrl: validateInstagramUrl(cli.followingUrl || process.env.FOLLOWING_URL || ''),
     scrollPauseMinSeconds: parseInteger(process.env.SCROLL_PAUSE_MIN_SECONDS, 2),

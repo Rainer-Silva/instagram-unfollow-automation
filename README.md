@@ -91,7 +91,7 @@ Users are solely responsible for how they use this software and assume all assoc
 
    The dashboard can change the Instagram username/profile being cleaned, open a manual login window, choose all follows or selected categories, edit the allowlist, launch dry-run/live runs, and adjust scheduler time/count.
 
-   The default run cap is `50`. Users can intentionally choose a higher cap in the dashboard or CLI, but higher limits increase account-risk exposure and still require explicit live confirmation.
+   The recommended daily run cap is `100`. Users can intentionally choose a different cap in the dashboard or CLI, but higher limits increase account-risk exposure and still require explicit live confirmation.
 
    Changing the cleanup target resets local daily/resume state for safety, so processed usernames from one account are not reused for another account.
 
@@ -135,7 +135,11 @@ By default, runtime logs and state redact account usernames:
 REDACT_USERNAMES=1
 ```
 
-With redaction enabled, CSV logs use `[redacted]` for usernames and daily resume state stores hashed keys instead of raw usernames.
+With redaction enabled, CSV logs use `[redacted]` for usernames and daily resume state stores hashed keys for successful unfollows instead of raw usernames. Skipped usernames are not stored by default:
+
+```bash
+STORE_SKIPPED_USERNAMES=0
+```
 
 Do not:
 
@@ -156,15 +160,16 @@ Remote debugging mode is still available for advanced use. Set these in `.env` o
 - `CHROME_REMOTE_DEBUGGING_PORT`
 - `CHROME_REMOTE_DEBUGGING_URL` if you want to attach to a running Chrome started with remote debugging
 
-## Prioritization
+## Cleanup Mode
 
-Candidates are grouped before action:
+The default mode is count-driven cleanup:
 
-- `selling_or_product_page`: product, store, shop, sale, brand, course, coaching, etc.
-- `instagram_business_or_creator_category`: Instagram-visible labels such as product/service, shopping/retail, local business, digital creator, public figure, artist, musician/band, restaurant, etc.
-- `public_or_general_page`: media, news, travel, embassy, company, restaurant, community, etc.
-- `person_or_uncategorized`: normal personal-looking accounts.
-- `mutual_friends_last`: accounts with mutual-friend/follows-you style row text.
+```bash
+CLEANUP_MODE=all
+SKIP_PERSONAL_ACCOUNTS=0
+```
+
+This keeps the tool simple and focused on reaching the configured daily count. Candidates are still sorted so obvious business/product/public pages tend to be attempted first, but personal-looking accounts are no longer skipped by default.
 
 Verified accounts and allowlisted accounts are still skipped.
 

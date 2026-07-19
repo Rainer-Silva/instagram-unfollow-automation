@@ -19,7 +19,14 @@ async function loadState(config, logger) {
     if (parsed.date !== today || (parsed.targetAccount && parsed.targetAccount !== targetAccount)) {
       return { ...defaultState, date: today, targetAccount };
     }
-    return { ...defaultState, targetAccount, ...parsed };
+    const state = { ...defaultState, targetAccount, ...parsed };
+    if (!config.storeSkippedUsernames) {
+      state.processedUsernames = Object.fromEntries(
+        Object.entries(state.processedUsernames || {})
+          .filter(([, value]) => value?.status === 'unfollowed')
+      );
+    }
+    return state;
   } catch (error) {
     logger?.info('state_init', { path: config.statePath });
     return {

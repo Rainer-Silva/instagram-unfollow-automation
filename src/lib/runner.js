@@ -218,7 +218,9 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
       const candidateScope = candidate.card || candidate.control || candidate.button;
       const isVer = await candidateScope.locator('svg[aria-label*="Verified"], span[aria-label*="Verified"], [aria-label*="Verified"]').first().count().catch(() => 0);
       if (isVer) {
-        state.processedUsernames[candidate.key] = { status: 'skipped_verified', at: new Date().toISOString() };
+        if (config.storeSkippedUsernames) {
+          state.processedUsernames[candidate.key] = { status: 'skipped_verified', at: new Date().toISOString() };
+        }
         result.verifiedSkipped += 1;
         result.skipped += 1;
         logger.info('skip_verified', { username: candidate.username });
@@ -230,10 +232,12 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
         && candidate.category === 'person_or_uncategorized'
         && !isCategoryEligible(config, candidate.category)
       ) {
-        state.processedUsernames[candidate.key] = {
-          status: 'skipped_personal_uncategorized',
-          at: new Date().toISOString()
-        };
+        if (config.storeSkippedUsernames) {
+          state.processedUsernames[candidate.key] = {
+            status: 'skipped_personal_uncategorized',
+            at: new Date().toISOString()
+          };
+        }
         result.skipped += 1;
         logger.warn('skip_personal_uncategorized', {
           username: candidate.username,
@@ -247,11 +251,13 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
       }
 
       if (!isCategoryEligible(config, candidate.category)) {
-        state.processedUsernames[candidate.key] = {
-          status: 'skipped_category_not_selected',
-          category: candidate.category,
-          at: new Date().toISOString()
-        };
+        if (config.storeSkippedUsernames) {
+          state.processedUsernames[candidate.key] = {
+            status: 'skipped_category_not_selected',
+            category: candidate.category,
+            at: new Date().toISOString()
+          };
+        }
         result.skipped += 1;
         logger.warn('skip_category_not_selected', {
           username: candidate.username,
@@ -286,7 +292,9 @@ async function runUnfollowRoutine({ config, logger, state, browser }) {
           state.processedUsernames[candidate.key] = { status: 'unfollowed', at: new Date().toISOString() };
           logger.info('unfollow_complete', { username: candidate.username, dailyCount: state.unfollowedToday });
         } else {
-          state.processedUsernames[candidate.key] = { status: 'skipped_no_button', at: new Date().toISOString() };
+          if (config.storeSkippedUsernames) {
+            state.processedUsernames[candidate.key] = { status: 'skipped_no_button', at: new Date().toISOString() };
+          }
           result.skipped += 1;
           logger.warn('skip_no_following_button', { username: candidate.username });
         }
